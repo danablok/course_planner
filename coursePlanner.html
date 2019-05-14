@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:v-on="http://www.w3.org/1999/xhtml" xmlns:v-bind="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>LocalStorage Courses</title>
+    <script src="vue.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="bootstrap.min.css" rel="stylesheet" />
+    <style>
+        span {
+            color: red;
+            font-weight: bold;
+        }
+
+        span.isPassed {
+            color: green;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="container">
+        <h1>Course planner</h1>
+        <h3>User: {{user}} - {{courses.length}} courses</h3>
+    </div>
+    <div class="container">
+        <div class="row" style="margin: 3%">
+            <div class="col-sm-10">
+                <input class="form-control" placeholder="Add new course..." v-model="courseName" />
+            </div>
+            <div class="col-sm-2">
+                <button class="btn btn-light" v-on:click="addCourse()">Add</button>
+            </div>
+        </div>
+        <div class="row" style="margin: 3%">
+            <div class="col-sm-12">
+                <input type="search" placeholder="Search..." class="form-control" v-model="searchText" />
+            </div>
+        </div>
+        <div class="container" style="margin: 3%">
+            <label for="filter">Filter By:</label>
+
+            <div>
+                <select class="form-control" id="filter" v-model="selectType">
+                    <option value="">All</option>
+                    <option value="yes">Only passed</option>
+                    <option value="no">Only not passed</option>
+                </select>
+            </div>
+        </div>
+
+
+        <div class="container" style="margin: 3%">
+            <p>Sort by: {{ sortParam }}</p>
+        </div>
+
+
+
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th @click="sortParam='course', sortTypeCourseAsc=!sortTypeCourseAsc"  align=center>
+                        Course: {{ getSortArrow(sortTypeCourseAsc) }}</th>
+                    <th></th>
+                    <th><a @click="sortParam='type', sortTypeTypeAsc=!sortTypeTypeAsc"  align=center>
+                        Passed: {{ getSortArrow(sortTypeTypeAsc) }}</a></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(course, index) in sortedList"  align=center>
+                    <td v-html="course.name"  align=center></td>
+                    <td  align=center><input type="checkbox" v-model="course.passed" v-on:change="saveToLocal()" /></td>
+                    <td  align=center>
+                        <span v-bind:class="{isPassed: course.passed}">
+                            {{showText(course.passed)}}
+                        </span>
+                    </td>
+                    <td  align=center>
+                        <button class="btn btn-danger" v-on:click="deleteCourse(course.index)">Удалить курс</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+
+    let model = {
+        user: "Alex",
+        courseName: "",
+        searchText: "", // search
+        selectType: "", // filter
+        sortParam: "", // sort
+        sortTypeCourseAsc: null,
+        sortTypeTypeAsc: null,
+        courses: [],
+
+        options:["red", "yellow", "green"],
+        selectedOption: "yellow"
+    };
+
+    if (localStorage.courses != undefined) {
+        model.courses = JSON.parse(localStorage.courses);
+    }
+
+    let vm = new Vue({
+        el: '.container',
+        
+        data: model,
+        
+        methods: {
+            addCourse() {
+                let text = this.courseName.trim();
+                if (text.length != 0) {
+                    this.courses.push({name: text, passed: false});
+                    this.courseName = "";
+                }
+                this.saveToLocal();
+            },
+
+            showText: (passed) => passed ? "Yes" : "No",
+
+            deleteCourse(index) {
+                this.courses.splice(index, 1);
+                this.saveToLocal();
+            },
+
+            saveToLocal() {
+                localStorage.courses = JSON.stringify(this.courses);
+            },
+
+            compareAsc(a, b) {
+                if (a > b) return 1;
+                if (a < b) return -1;
+                return 0;
+            },
+
+            compareDesc(a, b) {
+                if (a < b) return 1;
+                if (a > b) return -1;
+                return 0;
+            },
+
+            getSortArrow(param) {
+                if(param == true) return '↑';
+                if(param == false) return '↓';
+                return '';
+            }
+        },
+
+        computed: {
+            searchedList() {
+                let text = this.searchText;
+                return this.courses.map(function(item, index){
+                    item.index = index;
+                    return item;
+                }).filter(function(item){
+                    if (text==="") {
+                        return true;
+                    } else {
+                        return item.name.indexOf(text) > -1;
+                    }
+                });
+            },
+            filteredList() {
+                let type = this.selectType;
+                switch(type) {
+                    case "yes":
+                        return this.searchedList.filter( i=>i.passed );
+                        break;
+                    case "no":
+                        return this.searchedList.filter( i=>!i.passed );
+                        break;
+                    default:
+                        return this.searchedList;
+                        break;
+                }
+            },
+            sortedList () {
+                switch(this.sortParam){
+                    case 'course': 
+                        return !this.sortTypeCourseAsc ?
+                            this.filteredList.sort( (a, b) => this.compareAsc(a.name, b.name) ): 
+                            this.filteredList.sort( (a, b) => this.compareDesc(a.name, b.name) );
+                    case 'type': 
+                        return !this.sortTypeTypeAsc ?
+                            this.filteredList.sort( (a, b) => this.compareAsc(a.passed, b.passed) ):
+                            this.filteredList.sort( (a, b) => this.compareDesc(a.passed, b.passed) );
+                    default: return this.filteredList;
+                }
+            }
+        }
+
+    });
+</script>
+</body>
+</html>
